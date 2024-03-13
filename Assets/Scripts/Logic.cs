@@ -13,6 +13,8 @@ public class Logic : MonoBehaviour
 {
     [SerializeField] private Image[] xImages = new Image[9];
     [SerializeField] private Image[] oImages = new Image[9];
+    [SerializeField] private Text comWinText;
+    [SerializeField] private Text drawText;
 
     [Header ("Buttons")]
     [SerializeField] private Button slot0;
@@ -24,9 +26,12 @@ public class Logic : MonoBehaviour
     [SerializeField] private Button slot6;
     [SerializeField] private Button slot7;
     [SerializeField] private Button slot8;
+    [SerializeField] private Button resetButton;
 
     [Header("GameplayVariables")]
     [SerializeField] bool playerTurn;
+    [SerializeField] bool comWin = false;
+    [SerializeField] bool draw = false;
     [SerializeField] static char computer = 'x';
     [SerializeField] static char player = 'o';
     private char[,] board = new char[3, 3]
@@ -51,6 +56,11 @@ public class Logic : MonoBehaviour
             slot8.onClick.AddListener(() => SlotSelected(2, 2));
         }
 
+        if (resetButton)
+        {
+            resetButton.onClick.AddListener(() => ResetGame());
+        }
+
         for (int i = 0; i < xImages.Length; i++)
         {
             xImages[i].gameObject.SetActive(false);
@@ -61,12 +71,16 @@ public class Logic : MonoBehaviour
             oImages[i].gameObject.SetActive(false);
         }
 
+        comWinText.gameObject.SetActive(false);
+
+        drawText.gameObject.SetActive(false);
+
         playerTurn = false;
     }
 
     private void Update()
     {
-        if (playerTurn == false)
+        if (playerTurn == false && !draw && !comWin)
         {
             MakeMove bestMove = FindBestMove(board);
             ImplementMove(bestMove);
@@ -85,6 +99,7 @@ public class Logic : MonoBehaviour
                 }
             }
         }
+
         return false;
     }
 
@@ -263,15 +278,11 @@ public class Logic : MonoBehaviour
 
     void SlotSelected(int rowSelected, int colSelected)
     {
-        if (board[rowSelected, colSelected] == '_')
+        if (board[rowSelected, colSelected] == '_' && !draw && !comWin)
         {
             board[rowSelected, colSelected] = player;
             UpdateBoard();
             playerTurn = false;
-        }
-        else
-        {
-            Debug.Log("Invalid Move, Please try again");
         }
     }
 
@@ -279,6 +290,43 @@ public class Logic : MonoBehaviour
     {
         board[bestMove.row, bestMove.col] = computer;
         UpdateBoard();
-        playerTurn = true;
+
+        bool movesLeft = IsMovesLeft(board);
+        int evaluation = Evaluate(board);
+
+        if (movesLeft && evaluation == 0)
+        {
+            playerTurn = true;
+        }
+        else if (!movesLeft)
+        {
+            drawText.gameObject.SetActive(true);
+            draw = true;
+        }
+        else if (evaluation != 0)
+        {
+            comWinText.gameObject.SetActive(true);
+            comWin = true;
+        }
+    }
+
+    void ResetGame()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                board[i, j] = '_';
+            }
+        }
+
+        comWinText.gameObject.SetActive(false);
+        drawText.gameObject.SetActive(false);
+
+        playerTurn = false;
+        comWin = false;
+        draw = false;
+
+        UpdateBoard();
     }
 }
