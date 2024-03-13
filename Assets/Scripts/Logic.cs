@@ -3,11 +3,16 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+struct MakeMove
+{
+    public int row;
+    public int col;
+}
+
 public class Logic : MonoBehaviour
 {
     [SerializeField] private Image[] xImages = new Image[9];
     [SerializeField] private Image[] oImages = new Image[9];
-    [SerializeField] private Image[] lineImages = new Image[8];
 
     [Header ("Buttons")]
     [SerializeField] private Button slot0;
@@ -21,8 +26,9 @@ public class Logic : MonoBehaviour
     [SerializeField] private Button slot8;
 
     [Header("GameplayVariables")]
-    [SerializeField] private char player = 'o';
-    [SerializeField] private char opponent = 'x';
+    [SerializeField] bool playerTurn;
+    [SerializeField] static char computer = 'x';
+    [SerializeField] static char player = 'o';
     private char[,] board = new char[3, 3]
     {
         {'_', '_', '_'},
@@ -30,7 +36,6 @@ public class Logic : MonoBehaviour
         {'_', '_', '_'}
     };
 
-    // Start is called before the first frame update
     void Start()
     {
         if (slot0 && slot1 && slot2 && slot3 && slot4 && slot5 && slot6 && slot7 && slot8)
@@ -56,19 +61,180 @@ public class Logic : MonoBehaviour
             oImages[i].gameObject.SetActive(false);
         }
 
-        for (int i = 0; i < lineImages.Length; i++)
+        playerTurn = false;
+    }
+
+    private void Update()
+    {
+        if (playerTurn == false)
         {
-            lineImages[i].gameObject.SetActive(false);
+            MakeMove bestMove = FindBestMove(board);
+            ImplementMove(bestMove);
         }
     }
 
-    // Update is called once per frame
-    void Update()
+    static bool IsMovesLeft(char[,] board)
     {
-
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                if (board[i, j] == '_')
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
-    private void UpdateBoard()
+    static int Evaluate(char[,] board)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (board[i, 0] == board[i, 1] && board[i, 1] == board[i, 2])
+            {
+                if (board[i, 0] == computer)
+                {
+                    return +10;
+                }
+                else if (board[i, 0] == player)
+                {
+                    return -10;
+                }
+            }
+        }
+
+        for (int j = 0; j < 3; j++)
+        {
+            if (board[0, j] == board[1, j] && board[1, j] == board[2, j])
+            {
+                if (board[0, j] == computer)
+                {
+                    return +10;
+                }
+                else if (board[0, j] == player)
+                {
+                    return -10;
+                }
+            }
+        }
+
+        if (board[0, 0] == board[1, 1] && board[1, 1] == board[2, 2])
+        {
+            if (board[0, 0] == computer)
+            {
+                return +10;
+            }
+            else if (board[0, 0] == player)
+            {
+                return -10;
+            }
+        }
+
+        if (board[0, 2] == board[1, 1] && board[1, 1] == board[2, 0])
+        {
+            if (board[0, 2] == computer)
+            {
+                return +10;
+            }
+            else if (board[0, 2] == player)
+            {
+                return -10;
+            }
+        }
+
+        return 0;
+    }
+
+    static int MiniMax(char[,] board, int depth, bool isMax)
+    {
+        int score = Evaluate(board);
+
+        if (score == 10)
+        {
+            return score;
+        }
+        if (score == -10)
+        {
+            return score;
+        }
+        if (!IsMovesLeft(board))
+        {
+            return 0;
+        }
+
+        if (isMax)
+        {
+            int best = -9999;
+
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    if (board[i, j] == '_')
+                    {
+                        board[i, j] = computer;
+                        best = Mathf.Max(best, MiniMax(board, depth + 1, !isMax));
+                        board[i, j] = '_';
+                    }
+                }
+            }
+
+            return best;
+        }
+        else
+        {
+            int best = 9999;
+
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    if (board[i, j] == '_')
+                    {
+                        board[i, j] = player;
+                        best = Mathf.Min(best, MiniMax(board, depth + 1, !isMax));
+                        board[i, j] = '_';
+                    }
+                }
+            }
+
+            return best;
+        }
+    }
+
+    static MakeMove FindBestMove(char[,] board)
+    {
+        int bestMoveValue = -9999;
+        MakeMove bestMove;
+        bestMove.row = -1;
+        bestMove.col = -1;
+
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                if (board[i, j] == '_')
+                {
+                    board[i, j] = computer;
+                    int moveValue = MiniMax(board, 0, false);
+                    board[i, j] = '_';
+
+                    if (moveValue > bestMoveValue)
+                    {
+                        bestMove.row = i;
+                        bestMove.col = j;
+                        bestMoveValue = moveValue;
+                    }
+                }
+            }
+        }
+
+        return bestMove;
+    }
+
+    void UpdateBoard()
     {
         for (int i = 0; i < 3; i++)
         {
@@ -76,35 +242,43 @@ public class Logic : MonoBehaviour
             {
                 if (board[i, j] == 'o')
                 {
-                    oImages[i + j].gameObject.SetActive(true);
+                    oImages[i * 3 + j].gameObject.SetActive(true);
+                }
+                else
+                {
+                    oImages[i * 3 + j].gameObject.SetActive(false);
                 }
 
                 if (board[i, j] == 'x')
                 {
-                    xImages[i + j].gameObject.SetActive(true);
+                    xImages[i * 3 + j].gameObject.SetActive(true);
+                }
+                else
+                {
+                    xImages[i * 3 + j].gameObject.SetActive(false);
                 }
             }
         }
     }
 
-    private void SlotSelected(int colSelected, int rowSelected)
+    void SlotSelected(int rowSelected, int colSelected)
     {
-        board[colSelected, rowSelected] = 'o';
+        if (board[rowSelected, colSelected] == '_')
+        {
+            board[rowSelected, colSelected] = player;
+            UpdateBoard();
+            playerTurn = false;
+        }
+        else
+        {
+            Debug.Log("Invalid Move, Please try again");
+        }
+    }
+
+    void ImplementMove(MakeMove bestMove)
+    {
+        board[bestMove.row, bestMove.col] = computer;
         UpdateBoard();
-    }
-
-    bool IsMovesLeft()
-    {
-        return false;
-    }
-
-    int Evaluate()
-    {
-        return 0;
-    }
-
-    int MiniMax()
-    {
-        return 0;
+        playerTurn = true;
     }
 }
